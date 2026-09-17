@@ -1,47 +1,67 @@
 import { AdminShell } from "@/components/admin/AdminShell";
 import { listCategories } from "@/services/category.service";
 import { saveCategoryAction, toggleCategoryAction, deleteCategoryAction } from "@/app/admin/actions";
+import { AdminMiniButton, ConfirmAction } from "@/components/admin/AdminActions";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
-export default async function AdminCategoriesPage() {
+export default async function AdminCategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const categories = await listCategories();
 
   return (
     <AdminShell>
       <p className="eyebrow">Taxonomia</p>
       <h1 className="display mt-2 text-4xl">Categorias</h1>
-      <form action={saveCategoryAction} className="mt-8 grid max-w-xl gap-3">
+      <p className="mt-2 max-w-xl text-sm text-taupe">
+        Desative para esconder na loja. Só exclua se não houver peças na categoria.
+      </p>
+      {aviso ? (
+        <p className="mt-6 border border-wine/30 bg-wine/10 px-4 py-3 text-sm text-wine">{aviso}</p>
+      ) : null}
+      <form action={saveCategoryAction} className="mt-8 grid max-w-xl gap-3 border border-line bg-white p-6">
         <Input label="Nome" name="name" required />
         <Textarea label="Descrição" name="description" />
         <Input label="Imagem URL" name="imageUrl" />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked />
-          Ativa
+          Ativa na loja
         </label>
         <Button type="submit">Criar categoria</Button>
       </form>
-      <ul className="mt-10 max-w-xl divide-y divide-line">
+      <ul className="mt-10 grid max-w-3xl gap-4">
         {categories.map((category) => (
-          <li key={category.id} className="flex items-center justify-between py-4 text-sm">
+          <li key={category.id} className="flex flex-wrap items-center justify-between gap-4 border border-line bg-white p-5">
             <div>
-              <p>{category.name}</p>
-              <p className="text-xs text-taupe">
-                {category.active ? "Ativa" : "Inativa"} · {category._count.products} peças
+              <p className="font-serif text-2xl">{category.name}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.14em] text-taupe">
+                {category.active ? "Ativa na loja" : "Desativada"} · {category._count.products}{" "}
+                {category._count.products === 1 ? "peça" : "peças"}
               </p>
             </div>
-            <div className="flex gap-3 text-[10px] uppercase tracking-[0.14em]">
+            <div className="flex flex-wrap gap-2">
               <form action={toggleCategoryAction}>
                 <input type="hidden" name="id" value={category.id} />
                 <input type="hidden" name="active" value={category.active ? "false" : "true"} />
-                <button type="submit">{category.active ? "Desativar" : "Ativar"}</button>
+                <AdminMiniButton tone={category.active ? "archive" : "restore"}>
+                  {category.active ? "Desativar" : "Ativar"}
+                </AdminMiniButton>
               </form>
-              <form action={deleteCategoryAction}>
+              <ConfirmAction
+                action={deleteCategoryAction}
+                message={
+                  category._count.products > 0
+                    ? "Esta categoria ainda tem peças. O sistema não exclui para não quebrar o acervo."
+                    : "Excluir esta categoria?"
+                }
+              >
                 <input type="hidden" name="id" value={category.id} />
-                <button type="submit" className="text-wine">
-                  Excluir
-                </button>
-              </form>
+                <AdminMiniButton tone="delete">Excluir</AdminMiniButton>
+              </ConfirmAction>
             </div>
           </li>
         ))}

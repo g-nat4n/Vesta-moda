@@ -194,7 +194,11 @@ export async function listOrders(filters?: { status?: OrderStatus; q?: string })
           ]
         : undefined,
     },
-    include: { items: true, payment: true, user: true },
+    include: {
+      items: true,
+      payment: true,
+      user: { select: { id: true, name: true, email: true, role: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -202,7 +206,11 @@ export async function listOrders(filters?: { status?: OrderStatus; q?: string })
 export async function getOrderById(id: string) {
   return prisma.order.findUnique({
     where: { id },
-    include: { items: true, payment: true, user: true },
+    include: {
+      items: true,
+      payment: true,
+      user: { select: { id: true, name: true, email: true, role: true } },
+    },
   });
 }
 

@@ -191,15 +191,21 @@ export function FeaturedCuradoria({ products }: { products: CuradoriaCard[] }) {
                           src={product.item.imageUrl}
                           alt={product.alt}
                           fill
-                          className="object-cover transition duration-500 hover:scale-105"
+                          className={cn(
+                            "object-cover transition duration-500 hover:scale-105",
+                            product.sold && "grayscale",
+                          )}
                           sizes="(max-width: 768px) 100vw, 33vw"
                         />
                       ) : null}
                     </Link>
+                    {product.sold ? (
+                      <div className="pointer-events-none absolute inset-0 bg-ink/40" />
+                    ) : null}
                     <button
                       type="button"
                       className={cn(
-                        "absolute right-4 top-4 rounded-full bg-white/95 p-3 text-burgundy",
+                        "absolute right-4 top-4 z-10 rounded-full bg-white/95 p-3 text-burgundy",
                         liked && "text-wine",
                       )}
                       aria-label={`Favoritar ${product.item.name}`}
@@ -213,6 +219,11 @@ export function FeaturedCuradoria({ products }: { products: CuradoriaCard[] }) {
                     >
                       <Heart className={cn("h-[18px] w-[18px]", liked && "fill-wine")} />
                     </button>
+                    {product.sold ? (
+                      <span className="absolute left-4 top-4 z-10 bg-ink px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+                        Vendida
+                      </span>
+                    ) : null}
                   </div>
                   <div className="p-5">
                     <div className="flex justify-between gap-3">

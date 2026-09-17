@@ -48,14 +48,14 @@ export function Header() {
           {BRAND.wordmark}
         </Link>
 
-        <nav className="hidden min-w-0 items-center gap-5 xl:flex" aria-label="Navegação principal">
+        <nav className="hidden min-w-0 items-center gap-1 xl:flex" aria-label="Navegação principal">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.label}
               href={link.href}
               className={cn(
-                "text-xs font-semibold uppercase tracking-[0.12em] text-gold transition hover:text-burgundy",
-                pathname === link.href && link.href !== "/#categorias" && "text-burgundy",
+                "inline-flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-gold transition hover:bg-gold/15 hover:text-burgundy",
+                pathname === link.href && link.href !== "/#categorias" && "bg-gold/15 text-burgundy",
               )}
             >
               {link.label}
@@ -142,7 +142,7 @@ export function Header() {
                   key={link.label}
                   href={link.href}
                   className={cn(
-                    "py-3 text-sm font-semibold text-gold",
+                    "-mx-2 px-2 py-3 text-sm font-semibold text-gold transition hover:bg-gold/15 hover:text-burgundy",
                     index < NAV_LINKS.length - 1 && "border-b border-black/10",
                   )}
                 >

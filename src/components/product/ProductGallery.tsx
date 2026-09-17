@@ -6,7 +6,15 @@ import { cn } from "@/lib/utils";
 
 type ImageItem = { url: string; alt: string };
 
-export function ProductGallery({ images, name }: { images: ImageItem[]; name: string }) {
+export function ProductGallery({
+  images,
+  name,
+  sold,
+}: {
+  images: ImageItem[];
+  name: string;
+  sold?: boolean;
+}) {
   const [active, setActive] = useState(0);
   const current = images[active] ?? images[0];
 
@@ -38,9 +46,14 @@ export function ProductGallery({ images, name }: { images: ImageItem[]; name: st
           alt={current.alt || name}
           fill
           priority
-          className="object-cover"
+          className={cn("object-cover", sold && "grayscale")}
           sizes="(max-width: 768px) 100vw, 50vw"
         />
+        {sold ? (
+          <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+            Vendida
+          </span>
+        ) : null}
       </div>
     </div>
   );

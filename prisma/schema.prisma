@@ -60,19 +60,32 @@ enum PaymentMethod {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String?
-  role          Role      @default(CUSTOMER)
-  cpf           String?
-  phone         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  addresses     Address[]
-  orders        Order[]
+  id                   String    @id @default(cuid())
+  name                 String
+  email                String    @unique
+  emailVerified        DateTime?
+  image                String?
+  passwordHash         String?
+  passwordResetHash    String?
+  passwordResetExpires DateTime?
+  role                 Role      @default(CUSTOMER)
+  cpf                  String?
+  phone                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  addresses            Address[]
+  orders               Order[]
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
 }
 
 model Address {

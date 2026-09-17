@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { OrderStatus, ProductStatus, Role } from "@prisma/client";
 import { auth } from "@/auth";
 import { productFormSchema, categoryFormSchema } from "@/lib/validations";
-import { upsertProduct, addProductImage, deleteProductImage } from "@/services/product.service";
+import { upsertProduct, addProductImage, deleteProductImage, deleteProduct } from "@/services/product.service";
 import { prisma } from "@/lib/prisma";
 import { upsertCategory, deleteCategory, toggleCategory } from "@/services/category.service";
 import { updateOrderStatus } from "@/services/order.service";
@@ -63,6 +63,7 @@ export async function saveProductAction(_prev: { error?: string } | null, formDa
     revalidatePath("/admin/produtos");
     revalidatePath(`/admin/produtos/${product.id}`);
     revalidatePath("/produtos");
+    revalidatePath("/");
     redirect(`/admin/produtos/${product.id}`);
   } catch (error) {
     if (typeof error === "object" && error && "digest" in error && String((error as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) {
@@ -73,6 +74,18 @@ export async function saveProductAction(_prev: { error?: string } | null, formDa
   }
 }
 
+function revalidateStore() {
+  revalidatePath("/");
+  revalidatePath("/produtos");
+  revalidatePath("/admin/produtos");
+}
+
+async function revalidateProductById(id: string) {
+  revalidateStore();
+  const product = await prisma.product.findUnique({ where: { id }, select: { slug: true } });
+  if (product?.slug) revalidatePath(`/produto/${product.slug}`);
+}
+
 export async function archiveProductAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
@@ -80,7 +93,21 @@ export async function archiveProductAction(formData: FormData) {
     where: { id },
     data: { status: ProductStatus.ARCHIVED },
   });
-  revalidatePath("/admin/produtos");
+  await revalidateProductById(id);
+}
+
+export async function restoreProductAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  const product = await prisma.product.findUnique({ where: { id } });
+  await prisma.product.update({
+    where: { id },
+    data: {
+      status: ProductStatus.AVAILABLE,
+      stock: product && product.stock < 1 ? 1 : product?.stock,
+    },
+  });
+  await revalidateProductById(id);
 }
 
 export async function markSoldAction(formData: FormData) {
@@ -90,7 +117,20 @@ export async function markSoldAction(formData: FormData) {
     where: { id },
     data: { status: ProductStatus.SOLD, stock: 0 },
   });
-  revalidatePath("/admin/produtos");
+  await revalidateProductById(id);
+}
+
+export async function deleteProductAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  try {
+    await deleteProduct(id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível excluir a peça.";
+    redirect(`/admin/produtos?aviso=${encodeURIComponent(message)}`);
+  }
+  revalidateStore();
+  redirect("/admin/produtos");
 }
 
 export async function saveCategoryAction(formData: FormData) {
@@ -110,18 +150,27 @@ export async function toggleCategoryAction(formData: FormData) {
   await requireAdmin();
   await toggleCategory(String(formData.get("id")), formData.get("active") === "true");
   revalidatePath("/admin/categorias");
+  revalidatePath("/");
+  revalidatePath("/produtos");
 }
 
 export async function deleteCategoryAction(formData: FormData) {
   await requireAdmin();
-  await deleteCategory(String(formData.get("id")));
+  try {
+    await deleteCategory(String(formData.get("id")));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível excluir a categoria.";
+    redirect(`/admin/categorias?aviso=${encodeURIComponent(message)}`);
+  }
   revalidatePath("/admin/categorias");
+  revalidatePath("/");
 }
 
 export async function updateOrderStatusAction(formData: FormData) {
   await requireAdmin();
   await updateOrderStatus(String(formData.get("id")), String(formData.get("status")) as OrderStatus);
   revalidatePath("/admin/pedidos");
+  revalidatePath(`/admin/pedidos/${String(formData.get("id"))}`);
 }
 
 export async function addImageByUrlAction(formData: FormData) {

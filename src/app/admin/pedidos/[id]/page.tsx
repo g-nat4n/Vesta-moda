@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
+import { SafeImage } from "@/components/ui/SafeImage";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getOrderById } from "@/services/order.service";
-import { updateOrderStatusAction } from "@/app/admin/actions";
+import { OrderStatusForm } from "@/components/admin/OrderStatusForm";
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/constants";
 import { formatBRL } from "@/lib/format";
-import { OrderStatus } from "@prisma/client";
 
 type Params = Promise<{ id: string }>;
 
@@ -18,24 +18,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Params 
       <p className="eyebrow">Pedido</p>
       <h1 className="display mt-2 text-4xl">{order.number}</h1>
       <p className="mt-3 text-sm text-taupe">
-        {ORDER_STATUS_LABELS[order.status]} · Pagamento{" "}
+        Situação: {ORDER_STATUS_LABELS[order.status]} · Pagamento{" "}
         {order.payment ? PAYMENT_STATUS_LABELS[order.payment.status] : "—"}
       </p>
-      <form action={updateOrderStatusAction} className="mt-6 flex gap-3">
-        <input type="hidden" name="id" value={order.id} />
-        <select name="status" defaultValue={order.status} className="h-12 border border-line px-3">
-          {Object.values(OrderStatus).map((status) => (
-            <option key={status} value={status}>
-              {ORDER_STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="text-[11px] uppercase tracking-[0.16em] text-burgundy">
-          Atualizar
-        </button>
-      </form>
+      <OrderStatusForm id={order.id} status={order.status} />
       <div className="mt-8 grid gap-8 md:grid-cols-2">
-        <div>
+        <div className="border border-line bg-white p-6">
           <h2 className="display text-2xl">Cliente</h2>
           <p className="mt-3 text-sm leading-relaxed">
             {order.customerName}
@@ -47,7 +35,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Params 
             CPF {order.cpf}
           </p>
         </div>
-        <div>
+        <div className="border border-line bg-white p-6">
           <h2 className="display text-2xl">Endereço</h2>
           <p className="mt-3 text-sm leading-relaxed">
             {order.street}, {order.numberAddress} {order.complement}
@@ -60,16 +48,22 @@ export default async function AdminOrderDetailPage({ params }: { params: Params 
           </p>
         </div>
       </div>
-      <ul className="mt-8 divide-y divide-line text-sm">
+      <ul className="mt-8 divide-y divide-line border border-line bg-white px-6 text-sm">
         {order.items.map((item) => (
-          <li key={item.id} className="flex justify-between py-3">
-            <span>
+          <li key={item.id} className="flex items-center gap-4 py-4">
+            <div className="relative h-16 w-12 shrink-0 overflow-hidden bg-cream">
+              {item.imageUrl ? (
+                <SafeImage src={item.imageUrl} alt={item.name} fill className="object-cover" />
+              ) : null}
+            </div>
+            <span className="flex-1">
               {item.name} · {item.size}
             </span>
-            <span>{formatBRL(item.priceCents)}</span>
+            <span>{formatBRL(item.priceCents * item.quantity)}</span>
           </li>
         ))}
       </ul>
+      <p className="mt-4 text-right font-bold text-gold">{formatBRL(order.totalCents)}</p>
     </AdminShell>
   );
 }

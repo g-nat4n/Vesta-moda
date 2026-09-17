@@ -58,6 +58,7 @@ export default async function ProductPage({ params }: { params: Params }) {
         <ProductGallery
           images={product.images.map((image) => ({ url: image.url, alt: image.alt }))}
           name={product.name}
+          sold={!available}
         />
         <div>
           <p className="text-[11px] uppercase tracking-[0.22em] text-taupe">

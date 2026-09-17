@@ -270,3 +270,11 @@ export async function addProductImage(productId: string, url: string, alt: strin
 export async function deleteProductImage(id: string) {
   return prisma.productImage.delete({ where: { id } });
 }
+
+export async function deleteProduct(id: string) {
+  const inOrders = await prisma.orderItem.count({ where: { productId: id } });
+  if (inOrders > 0) {
+    throw new Error("Esta peça já entrou em um pedido. Arquive em vez de excluir.");
+  }
+  return prisma.product.delete({ where: { id } });
+}

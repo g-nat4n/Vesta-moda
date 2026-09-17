@@ -1,33 +1,20 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
-
-const links = [
-  { href: "/admin", label: "Visão geral" },
-  { href: "/admin/produtos", label: "Produtos" },
-  { href: "/admin/pedidos", label: "Pedidos" },
-  { href: "/admin/categorias", label: "Categorias" },
-  { href: "/admin/clientes", label: "Clientes" },
-];
+import { AdminNav } from "@/components/admin/AdminNav";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-ivory">
-      <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-line bg-burgundy p-6 text-ivory md:block">
-        <Link href="/" className="display text-2xl tracking-[0.16em]">
+      <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-line bg-burgundy py-6 text-ivory md:flex md:flex-col">
+        <Link href="/" className="display px-6 text-2xl tracking-[0.16em]">
           VESTA
         </Link>
-        <p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-gold">Atelier</p>
-        <nav className="mt-10 flex flex-col gap-4">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="text-[12px] uppercase tracking-[0.18em] text-ivory/80 hover:text-ivory">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="absolute bottom-6 left-6 right-6 space-y-3">
+        <p className="mt-1 px-6 text-[10px] uppercase tracking-[0.24em] text-gold">Atelier</p>
+        <AdminNav />
+        <div className="mt-auto space-y-3 px-6 pt-8">
           <Link
             href="/"
-            className="block text-[11px] uppercase tracking-[0.16em] text-gold hover:text-ivory"
+            className="inline-flex w-full items-center justify-center border border-gold bg-transparent px-4 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gold transition hover:bg-gold hover:text-burgundy"
           >
             Voltar para a loja
           </Link>
@@ -37,24 +24,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               await signOut({ redirectTo: "/" });
             }}
           >
-            <button type="submit" className="text-[11px] uppercase tracking-[0.16em] text-gold/80 hover:text-gold">
+            <button
+              type="submit"
+              className="w-full py-2 text-center text-[11px] uppercase tracking-[0.16em] text-ivory/70 transition hover:text-gold"
+            >
               Sair
             </button>
           </form>
         </div>
       </aside>
       <div className="md:pl-60">
-        <header className="flex items-center justify-between gap-3 border-b border-line px-6 py-4 md:hidden">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4 md:hidden">
           <span className="display text-xl">VESTA</span>
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.14em]">
-            <Link href="/" className="text-burgundy">
-              Loja
-            </Link>
-            {links.map((link) => (
-              <Link key={link.href} href={link.href}>
-                {link.label}
-              </Link>
-            ))}
+          <Link
+            href="/"
+            className="border border-gold px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-burgundy transition hover:bg-gold"
+          >
+            Loja
+          </Link>
+          <div className="w-full">
+            <AdminNav variant="mobile" />
           </div>
         </header>
         <div className="p-6 md:p-10">{children}</div>

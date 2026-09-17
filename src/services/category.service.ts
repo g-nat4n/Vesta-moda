@@ -39,5 +39,9 @@ export async function toggleCategory(id: string, active: boolean) {
 }
 
 export async function deleteCategory(id: string) {
+  const count = await prisma.product.count({ where: { categoryId: id } });
+  if (count > 0) {
+    throw new Error("Há peças nesta categoria. Mova ou arquive as peças antes de excluir.");
+  }
   return prisma.category.delete({ where: { id } });
 }

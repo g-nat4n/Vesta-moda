@@ -2,13 +2,17 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { prisma } from "@/lib/prisma";
 import { promoteUserToAdminAction } from "@/app/admin/actions";
 import { createMetadata } from "@/lib/seo";
+import { userPublicSelect } from "@/lib/auth/safe-user";
 
 export const metadata = createMetadata({ title: "Clientes", path: "/admin/clientes", noIndex: true });
 
 export default async function AdminCustomersPage() {
   const customers = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { orders: true } } },
+    select: {
+      ...userPublicSelect,
+      _count: { select: { orders: true } },
+    },
   });
 
   return (

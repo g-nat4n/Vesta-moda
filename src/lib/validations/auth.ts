@@ -1,16 +1,34 @@
 import { z } from "zod";
 import { isValidCpf, onlyDigits } from "@/lib/utils";
 
+export const PASSWORD_HINT =
+  "Mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial.";
+
+export const passwordSchema = z
+  .string()
+  .min(8, PASSWORD_HINT)
+  .regex(/[A-Z]/, PASSWORD_HINT)
+  .regex(/[^A-Za-z0-9]/, PASSWORD_HINT);
+
 export const loginSchema = z.object({
-  email: z.string().email("Informe um e-mail válido"),
-  password: z.string().min(6, "A senha precisa ter ao menos 6 caracteres"),
+  email: z.string().trim().email("Informe um e-mail válido"),
+  password: z.string().min(1, "Informe a senha"),
 });
 
 export const registerSchema = z.object({
   name: z.string().min(2, "Informe seu nome"),
-  email: z.string().email("Informe um e-mail válido"),
-  password: z.string().min(8, "A senha precisa ter ao menos 8 caracteres"),
+  email: z.string().trim().email("Informe um e-mail válido"),
+  password: passwordSchema,
   phone: z.string().optional(),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("Informe um e-mail válido"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20, "Link inválido ou expirado."),
+  password: passwordSchema,
 });
 
 export const checkoutSchema = z.object({

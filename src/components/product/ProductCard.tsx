@@ -1,7 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
+import { SafeImage } from "@/components/ui/SafeImage";
 import { formatBRL } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Prisma } from "@prisma/client";
 
 export type ProductCardProduct = Prisma.ProductGetPayload<{
@@ -17,16 +18,21 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
       <Link href={`/produto/${product.slug}`} className="block h-full">
         <div className="relative aspect-[3/4] overflow-hidden bg-cream">
           {image ? (
-            <Image
+            <SafeImage
               src={image.url}
               alt={image.alt || product.name}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover transition duration-700 group-hover:scale-[1.04]"
+              className={cn("object-cover transition duration-700 group-hover:scale-[1.04]", sold && "grayscale")}
             />
           ) : null}
+          {sold ? (
+            <span className="absolute inset-x-0 bottom-0 bg-ink/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+              Vendida
+            </span>
+          ) : null}
           <div className="absolute left-3 top-3 flex flex-col gap-2">
-            {product.uniquePiece ? <Badge>Peça única</Badge> : null}
+            {product.uniquePiece && !sold ? <Badge>Peça única</Badge> : null}
             {product.stock === 1 && !sold ? <Badge tone="wine">Última peça</Badge> : null}
             {sold ? <Badge tone="ink">Vendida</Badge> : null}
           </div>

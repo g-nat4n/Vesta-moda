@@ -5,10 +5,11 @@ import { getProductById } from "@/services/product.service";
 import { listCategories } from "@/services/category.service";
 import { prisma } from "@/lib/prisma";
 import { ImageUpload } from "@/components/admin/ImageUpload";
-import { addImageByUrlAction, deleteProductImageAction } from "@/app/admin/actions";
+import { addImageByUrlAction, archiveProductAction, deleteProductAction, deleteProductImageAction, markSoldAction } from "@/app/admin/actions";
+import { AdminMiniButton, ConfirmAction } from "@/components/admin/AdminActions";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import Image from "next/image";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 type Params = Promise<{ id: string }>;
 
@@ -25,6 +26,22 @@ export default async function EditProductPage({ params }: { params: Params }) {
     <AdminShell>
       <p className="eyebrow">Acervo</p>
       <h1 className="display mt-2 text-4xl">Editar peça</h1>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {product.status === "AVAILABLE" ? (
+          <ConfirmAction action={markSoldAction} message="Marcar esta peça como vendida?">
+            <input type="hidden" name="id" value={product.id} />
+            <AdminMiniButton tone="sold">Marcar vendida</AdminMiniButton>
+          </ConfirmAction>
+        ) : null}
+        <form action={archiveProductAction}>
+          <input type="hidden" name="id" value={product.id} />
+          <AdminMiniButton tone="archive">Arquivar</AdminMiniButton>
+        </form>
+        <ConfirmAction action={deleteProductAction} message="Excluir esta peça de vez?">
+          <input type="hidden" name="id" value={product.id} />
+          <AdminMiniButton tone="delete">Excluir</AdminMiniButton>
+        </ConfirmAction>
+      </div>
       <ProductForm product={product} categories={categories} looks={looks} />
       <section className="mt-12 max-w-3xl">
         <h2 className="display text-2xl">Imagens</h2>
@@ -32,7 +49,7 @@ export default async function EditProductPage({ params }: { params: Params }) {
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {product.images.map((image, index) => (
             <div key={image.id} className="relative aspect-[3/4] bg-cream">
-              <Image src={image.url} alt={image.alt} fill className="object-cover" />
+              <SafeImage src={image.url} alt={image.alt} fill className="object-cover" />
               <span className="absolute left-2 top-2 bg-ivory/90 px-2 py-1 text-[10px] uppercase tracking-[0.12em]">
                 {index === 0 ? "Principal" : `${index + 1}`}
               </span>
