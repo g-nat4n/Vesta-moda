@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #fcfaf5;
+  --color-cream: #f7f3ea;
+  --color-sand: #f2eee5;
+  --color-gold: #c9a44c;
+  --color-gold-deep: #a48438;
+  --color-burgundy: #400802;
+  --color-wine: #8b0000;
+  --color-forest: #284703;
+  --color-ink: #171611;
+  --color-taupe: #5a594f;
+  --color-line: #e4ddd0;
+  --font-serif: var(--font-playfair), "Playfair Display", serif;
+  --font-sans: var(--font-arimo), "Arimo", sans-serif;
+  --shadow-soft: 0 24px 60px rgba(64, 8, 2, 0.12);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    min-height: 100dvh;
+  }
+
+  body {
+    @apply bg-ivory text-ink antialiased;
+    min-height: 100dvh;
+    font-family: var(--font-sans), "Arimo", sans-serif;
+  }
+
+  ::selection {
+    background: #c9a44c;
+    color: #400802;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-3 outline-gold;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-main {
+    @apply mx-auto w-full max-w-7xl px-6 lg:px-8;
+  }
+
+  .gold-line {
+    @apply h-px w-[68px] bg-gold;
+  }
+
+  .product-card {
+    @apply transition duration-300;
+  }
+
+  .product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 22px 40px rgba(23, 22, 17, 0.13);
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.28em] text-gold;
+  }
+
+  .eyebrow-wine {
+    @apply text-[11px] font-bold uppercase tracking-[0.28em] text-wine;
+  }
+
+  .display {
+    font-family: var(--font-serif), "Playfair Display", serif;
+    @apply font-semibold tracking-[-0.02em] text-burgundy;
+  }
+
+  .gold-rule {
+    @apply h-px w-16 bg-gold;
+  }
+}
