@@ -137,7 +137,9 @@ async function quoteCorreios(destinationZip: string): Promise<ShippingQuote[]> {
   if (!token || origin.length !== 8) return [];
 
   const weight = process.env.SHIPPING_WEIGHT_GRAMS ?? "800";
-  const quotes = await Promise.all(
+  const quotes: ShippingQuote[] = [];
+
+  await Promise.all(
     CORREIOS_SERVICES.map(async (service) => {
       const [priceRes, prazoRes] = await Promise.all([
         fetch(
@@ -156,11 +158,11 @@ async function quoteCorreios(destinationZip: string): Promise<ShippingQuote[]> {
         ),
       ]);
 
-      if (!priceRes.ok) return null;
+      if (!priceRes.ok) return;
 
       const price = (await priceRes.json()) as { pcFinal?: string | number; msgs?: unknown };
       const priceCents = parseReaisToCents(price.pcFinal);
-      if (!priceCents) return null;
+      if (!priceCents) return;
 
       let days = 0;
       if (prazoRes.ok) {
@@ -168,7 +170,7 @@ async function quoteCorreios(destinationZip: string): Promise<ShippingQuote[]> {
         days = Number(prazo.prazoEntrega) || 0;
       }
 
-      return {
+      quotes.push({
         id: service.id,
         carrier: "Correios",
         service: service.label,
@@ -177,10 +179,10 @@ async function quoteCorreios(destinationZip: string): Promise<ShippingQuote[]> {
           : `Correios · ${service.label}`,
         priceCents,
         days,
-        source: "correios" as const,
-      } satisfies ShippingQuote;
+        source: "correios",
+      });
     }),
   );
 
-  return quotes.filter((quote): quote is ShippingQuote => Boolean(quote));
+  return quotes;
 }

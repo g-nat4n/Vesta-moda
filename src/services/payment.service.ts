@@ -9,6 +9,10 @@ function getClient() {
   return new MercadoPagoConfig({ accessToken: token });
 }
 
+function appBaseUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "http://localhost:3000";
+}
+
 function isPublicHttps(url: string) {
   try {
     const parsed = new URL(url);
@@ -16,6 +20,48 @@ function isPublicHttps(url: string) {
   } catch {
     return false;
   }
+}
+
+/** URL pública HTTPS exigida pelo Mercado Pago para back_urls / auto_return. */
+function publicReturnOrigin() {
+  const configured = process.env.MERCADOPAGO_RETURN_URL?.trim();
+  if (configured && isPublicHttps(configured)) return configured.replace(/\/$/, "");
+  const appUrl = appBaseUrl();
+  if (isPublicHttps(appUrl)) return appUrl.replace(/\/$/, "");
+  return "https://vesta-moda.vercel.app";
+}
+
+function buildBackUrls(orderId: string) {
+  const appUrl = appBaseUrl().replace(/\/$/, "");
+
+  // Em produção HTTPS, volta direto para a página do pedido.
+  if (isPublicHttps(appUrl)) {
+    const base = `${appUrl}/pedido/${orderId}`;
+    return {
+      success: `${base}?result=success`,
+      failure: `${base}?result=failure`,
+      pending: `${base}?result=pending`,
+      notificationUrl: `${appUrl}/api/webhooks/mercadopago`,
+    };
+  }
+
+  // Em localhost o MP bloqueia o retorno. Usamos bridge HTTPS na Vercel
+  // que redireciona automaticamente de volta para http://localhost:3000.
+  const bridge = publicReturnOrigin();
+  const home = encodeURIComponent(appUrl);
+  return {
+    success: `${bridge}/api/payments/mp-return?result=success&home=${home}`,
+    failure: `${bridge}/api/payments/mp-return?result=failure&home=${home}`,
+    pending: `${bridge}/api/payments/mp-return?result=pending&home=${home}`,
+    notificationUrl: undefined as string | undefined,
+  };
+}
+
+/** Em localhost ou com MERCADOPAGO_SANDBOX=true, usa o Checkout de teste. */
+export function isMercadoPagoSandbox() {
+  if (process.env.MERCADOPAGO_SANDBOX === "true") return true;
+  if (process.env.MERCADOPAGO_SANDBOX === "false") return false;
+  return !isPublicHttps(appBaseUrl());
 }
 
 export function mercadoPagoErrorMessage(error: unknown) {
@@ -46,13 +92,20 @@ export async function createPaymentPreference(orderId: string) {
 
   if (!client) {
     return {
-      checkoutUrl: `/pedido/${order.id}?status=pending-payment`,
+      checkoutUrl: `/pedido/${order.id}?result=pending-payment`,
       preferenceId: null as string | null,
     };
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "http://localhost:3000";
-  const successUrl = `${appUrl}/pedido/${order.id}?status=success`;
+  const sandbox = isMercadoPagoSandbox();
+  const back = buildBackUrls(order.id);
+  // No sandbox do Checkout Pro o e-mail do pagador precisa ser @testuser.com
+  const payerEmail = sandbox
+    ? order.email.toLowerCase().endsWith("@testuser.com")
+      ? order.email.toLowerCase()
+      : `buyer+${order.id.slice(-8)}@testuser.com`
+    : order.email;
+
   const preference = new Preference(client);
   const created = await preference.create({
     body: {
@@ -68,22 +121,19 @@ export async function createPaymentPreference(orderId: string) {
       ],
       payer: {
         name: order.customerName,
-        email: order.email,
+        email: payerEmail,
         identification: order.cpf
           ? { type: "CPF", number: order.cpf.replace(/\D/g, "") }
           : undefined,
       },
       back_urls: {
-        success: successUrl,
-        failure: `${appUrl}/pedido/${order.id}?status=failure`,
-        pending: `${appUrl}/pedido/${order.id}?status=pending`,
+        success: back.success,
+        failure: back.failure,
+        pending: back.pending,
       },
-      ...(isPublicHttps(appUrl)
-        ? {
-            notification_url: `${appUrl}/api/webhooks/mercadopago`,
-            auto_return: "approved" as const,
-          }
-        : {}),
+      // Redireciona sozinho após aprovar (até ~40s). Também mostra "Voltar ao site".
+      auto_return: "approved",
+      ...(back.notificationUrl ? { notification_url: back.notificationUrl } : {}),
       statement_descriptor: "VESTAMODA",
     },
   });
@@ -93,6 +143,8 @@ export async function createPaymentPreference(orderId: string) {
     data: { preferenceId: created.id },
   });
 
+  // Mercado Pago está descontinuando sandbox_init_point: use sempre init_point.
+  // O modo teste vem das credenciais de teste + cartão APRO / conta compradora de teste.
   return {
     checkoutUrl: created.init_point ?? created.sandbox_init_point ?? `/pedido/${order.id}`,
     preferenceId: created.id ?? null,
@@ -118,5 +170,23 @@ export async function handleMercadoPagoNotification(paymentId: string) {
       orderId,
       status === "refunded" ? PaymentStatus.REFUNDED : PaymentStatus.REJECTED,
     );
+  }
+}
+
+/** Sincroniza o pedido na volta do Checkout Pro (funciona sem webhook, inclusive no localhost). */
+export async function syncOrderFromMercadoPagoReturn(input: {
+  orderId: string;
+  paymentId?: string | null;
+  collectionStatus?: string | null;
+}) {
+  const paymentId = input.paymentId?.trim();
+  if (paymentId && paymentId !== "null") {
+    await handleMercadoPagoNotification(paymentId);
+    return;
+  }
+
+  const status = input.collectionStatus?.toLowerCase();
+  if (status === "rejected" || status === "cancelled") {
+    await restoreOrderStock(input.orderId, PaymentStatus.REJECTED);
   }
 }

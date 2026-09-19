@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { StoreShell } from "@/components/layout/StoreShell";
+import { Button } from "@/components/ui/Button";
 import { auth } from "@/auth";
 import { getOrderById } from "@/services/order.service";
+import { syncOrderFromMercadoPagoReturn } from "@/services/payment.service";
 import { formatBRL } from "@/lib/format";
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/constants";
 import { createMetadata } from "@/lib/seo";
@@ -20,11 +23,33 @@ export default async function OrderPage({
   searchParams,
 }: {
   params: Params;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    result?: string;
+    status?: string;
+    payment_id?: string;
+    collection_id?: string;
+    collection_status?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { status } = await searchParams;
+  const query = await searchParams;
   const session = await auth();
+
+  const paymentId = query.payment_id || query.collection_id;
+  const collectionStatus = query.collection_status || query.status;
+
+  if (paymentId || collectionStatus === "rejected" || collectionStatus === "cancelled") {
+    try {
+      await syncOrderFromMercadoPagoReturn({
+        orderId: id,
+        paymentId,
+        collectionStatus,
+      });
+    } catch {
+      // Mantém a página mesmo se a sincronização falhar; o status do banco ainda aparece.
+    }
+  }
+
   const order = await getOrderById(id);
   if (!order) notFound();
 
@@ -35,20 +60,84 @@ export default async function OrderPage({
 
   if (!canView) notFound();
 
+  const result = query.result;
+  const paymentStatus = order.payment?.status;
+  const approved =
+    paymentStatus === "APPROVED" || result === "success" || collectionStatus === "approved";
+  const failed =
+    paymentStatus === "REJECTED" ||
+    result === "failure" ||
+    collectionStatus === "rejected" ||
+    collectionStatus === "cancelled";
+  const pendingPayment =
+    result === "pending-payment" ||
+    result === "pending" ||
+    (!approved && !failed && paymentStatus === "PENDING");
+
   return (
     <StoreShell>
       <section className="container-main py-16">
-        <p className="eyebrow">Pedido recebido</p>
+        <p className="eyebrow">Pedido</p>
         <h1 className="display mt-2 text-4xl">{order.number}</h1>
-        {status === "pending-payment" ? (
-          <p className="mt-4 max-w-xl text-sm text-taupe">
-            O Mercado Pago ainda não está configurado neste ambiente. Sua peça foi reservada e o pagamento permanece pendente.
-          </p>
+
+        {approved ? (
+          <div className="mt-8 border border-forest/25 bg-white/70 px-6 py-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-forest">
+              Pagamento aprovado
+            </p>
+            <p className="mt-2 text-sm text-ink">
+              Recebemos o pagamento. Guarde o código da compra{" "}
+              <span className="font-semibold">{order.number}</span>.
+            </p>
+            <p className="mt-1 text-sm text-taupe">
+              Em breve o atelier prepara o envio ou a retirada.
+            </p>
+          </div>
         ) : null}
-        <p className="mt-4 text-sm text-taupe">
-          Status: {ORDER_STATUS_LABELS[order.status]} · Pagamento:{" "}
+
+        {failed ? (
+          <div className="mt-8 border border-wine/30 bg-white/70 px-6 py-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-wine">
+              Pagamento não aprovado
+            </p>
+            <p className="mt-2 text-sm text-ink">
+              O cartão não passou ou o pagamento foi recusado. O pedido{" "}
+              <span className="font-semibold">{order.number}</span> ficou sem confirmação.
+            </p>
+            <p className="mt-1 text-sm text-taupe">
+              Você pode tentar de novo pelo checkout ou escolher outra peça.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button href="/checkout" variant="burgundy">
+                Tentar novamente
+              </Button>
+              <Button href="/produtos" variant="ghost">
+                Ver curadoria
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {pendingPayment && !approved && !failed ? (
+          <div className="mt-8 border border-gold/40 bg-white/70 px-6 py-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-burgundy">
+              Pagamento pendente
+            </p>
+            <p className="mt-2 text-sm text-ink">
+              Seu pedido <span className="font-semibold">{order.number}</span> foi registrado e
+              aguarda a confirmação do pagamento
+              {result === "pending-payment"
+                ? " (Mercado Pago ainda não configurado neste ambiente)."
+                : "."}
+            </p>
+          </div>
+        ) : null}
+
+        <p className="mt-6 text-sm text-taupe">
+          Situação do pedido: {ORDER_STATUS_LABELS[order.status]} · Pagamento:{" "}
           {order.payment ? PAYMENT_STATUS_LABELS[order.payment.status] : "—"}
         </p>
+
         <ul className="mt-10 divide-y divide-line">
           {order.items.map((item) => (
             <li key={item.id} className="flex gap-4 py-4">
@@ -67,6 +156,7 @@ export default async function OrderPage({
             </li>
           ))}
         </ul>
+
         <dl className="mt-8 max-w-sm space-y-2 text-sm">
           <div className="flex justify-between">
             <dt>Subtotal</dt>
@@ -85,6 +175,7 @@ export default async function OrderPage({
             <dd>{formatBRL(order.totalCents)}</dd>
           </div>
         </dl>
+
         <div className="mt-8 text-sm leading-relaxed text-taupe">
           <p>
             {order.customerName} · {order.email}
@@ -96,6 +187,23 @@ export default async function OrderPage({
             {order.city}/{order.state} · {order.zip}
           </p>
         </div>
+
+        {approved || pendingPayment ? (
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Button href="/produtos" variant="ghost">
+              Continuar na loja
+            </Button>
+            {session?.user ? (
+              <Button href="/minha-conta" variant="burgundy">
+                Ver minha conta
+              </Button>
+            ) : (
+              <Link href="/" className="text-sm text-burgundy">
+                Voltar ao início
+              </Link>
+            )}
+          </div>
+        ) : null}
       </section>
     </StoreShell>
   );

@@ -5,6 +5,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { loginSchema } from "@/lib/validations/auth";
 import { clientIp } from "@/lib/auth/ip";
 import { assertLoginAllowed, LoginLockedError, recordLoginAttempt } from "@/lib/auth/lockout";
+import { authConfig } from "@/auth.config";
 
 class AuthLoginError extends CredentialsSignin {
   constructor(code: string) {
@@ -14,11 +15,7 @@ class AuthLoginError extends CredentialsSignin {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-  },
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -76,20 +73,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.role = (user as { role?: string }).role ?? "CUSTOMER";
-        token.id = user.id;
-      }
-      return token;
-    },
-    session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = (token.role as "CUSTOMER" | "ADMIN") ?? "CUSTOMER";
-      }
-      return session;
-    },
-  },
 });
